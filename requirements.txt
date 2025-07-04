@@ -1,0 +1,7 @@
+fastapi
+typer[all]
+sentence-transformers
+elasticsearch==8.8.0
+gitpython
+uvicorn
+python-dotenv
