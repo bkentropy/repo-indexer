@@ -10,8 +10,11 @@ class ModelCache:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super(ModelCache, cls).__new__(cls)
-                    cls._instance.model = SentenceTransformer("all-MiniLM-L6-v2")
         return cls._instance
+
+    def __init__(self):
+        if not hasattr(self, 'model'):
+            self.model = SentenceTransformer("all-MiniLM-L6-v2")
     
     def encode(self, query):
-        return ModelCache._instance.model.encode(query)
+        return self.model.encode(query)
