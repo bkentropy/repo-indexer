@@ -29,8 +29,8 @@ def summarize_code(results, query):
     # Create a prompt for summarization
     prompt = f"""You are a helpful code assistant. Please analyze the following code snippets 
     and provide a concise summary of their key functionality and relevance to the query: "{query}".
-    
-    Format your response as markdown with bullet points for each code snippet.
+
+    Provide a single summary that captures the essence of the code snippets.
     
     Code snippets:
     """
