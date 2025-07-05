@@ -1,4 +1,5 @@
 import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from dotenv import load_dotenv
 from openai import OpenAI
 
