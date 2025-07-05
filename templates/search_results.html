@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .result-header {
+            margin-bottom: 10px;
+        }
+        .filename {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .code {
+            background-color: white;
+            padding: 10px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .query {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="query">
+        <h2>Search Results for: {{ query }}</h2>
+    </div>
+    {% for result in results %}
+    <div class="result">
+        <div class="result-header">
+            <span class="filename">{{ result.file_path }}</span>
+            <span class="type">({{ result.type }})</span>
+        </div>
+        <div class="code">{{ result.code }}</div>
+    </div>
+    {% endfor %}
+</body>
+</html>

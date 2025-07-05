@@ -5,3 +5,4 @@ elasticsearch==8.8.0
 gitpython
 uvicorn
 python-dotenv
+jinja2
