@@ -31,48 +31,53 @@ async def root():
     return {"status": datetime.now().isoformat()}
 
 @app.get("/ast")
-async def get_ast(code: str):
+async def get_ast():
     try:
-        # Parse the code into AST
-        tree = ast.parse(code)
-        # Convert AST to JSON
-        def ast_to_dict(node):
-            if isinstance(node, ast.AST):
-                result = {"type": node.__class__.__name__}
-                for field in node._fields:
-                    value = getattr(node, field)
-                    if isinstance(value, (list, tuple)):
-                        result[field] = [ast_to_dict(x) for x in value]
-                    elif isinstance(value, ast.AST):
-                        result[field] = ast_to_dict(value)
-                    elif isinstance(value, str):
-                        result[field] = value  # Don't add quotes to string values
-                    elif isinstance(value, (int, float, bool)):
-                        result[field] = str(value)
-                    else:
-                        result[field] = str(value)
-                return result
-            return str(node)
+        # Query Elasticsearch for all code chunks using search_by_text
+        results = search_by_text("", top_k=1000)  # Empty query for match_all
+        
+        # Process each chunk and create AST
+        ast_trees = []
+        for hit in results:
+            try:
+                # Parse the code chunk into AST
+                tree = ast.parse(hit["code"])
+                
+                # Convert AST to JSON
+                def ast_to_dict(node):
+                    if isinstance(node, ast.AST):
+                        result = {"type": node.__class__.__name__}
+                        for field in node._fields:
+                            value = getattr(node, field)
+                            if isinstance(value, (list, tuple)):
+                                result[field] = [ast_to_dict(x) for x in value]
+                            elif isinstance(value, ast.AST):
+                                result[field] = ast_to_dict(value)
+                            elif isinstance(value, str):
+                                result[field] = value
+                            elif isinstance(value, (int, float, bool)):
+                                result[field] = str(value)
+                            else:
+                                result[field] = str(value)
+                        return result
+                    return str(node)
 
-        # Special handling for simple expressions
-        if isinstance(tree, ast.Module) and len(tree.body) == 1 and isinstance(tree.body[0], ast.Expr):
-            expr = tree.body[0].value
-            if isinstance(expr, ast.Name):
-                return {"type": "Name", "id": expr.id}
-            elif isinstance(expr, ast.Str):
-                return {"type": "Str", "s": expr.s}
-            elif isinstance(expr, ast.Num):
-                return {"type": "Num", "n": expr.n}
-            elif isinstance(expr, ast.Constant):
-                return {"type": "Constant", "value": expr.value}
-            else:
-                return ast_to_dict(expr)
+                # Add metadata to AST tree
+                ast_json = ast_to_dict(tree)
+                ast_json["metadata"] = {
+                    "file_path": hit["file_path"],
+                    "start_line": hit["start_line"],
+                    "end_line": hit["end_line"],
+                    "type": hit["type"]
+                }
+                ast_trees.append(ast_json)
+            except SyntaxError:
+                continue  # Skip invalid code chunks
         
-        ast_json = ast_to_dict(tree)
-        return JSONResponse(ast_json)
+        return JSONResponse(ast_trees)
         
-    except SyntaxError:
-        return JSONResponse({"error": "Invalid Python code"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.get("/ast-visualizer")
 async def ast_visualizer():
