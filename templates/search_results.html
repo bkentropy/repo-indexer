@@ -33,11 +33,29 @@
         .query {
             margin-bottom: 20px;
         }
+        .summary {
+            background-color: #f0f9ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .summary-content {
+            line-height: 1.6;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div class="query">
         <h2>Search Results for: {{ query }}</h2>
+        {% if summary %}
+        <div class="summary">
+            <h3>Summary of Top Results:</h3>
+            <div class="summary-content">
+                {{ summary|safe }}
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% for result in results %}
     <div class="result">
