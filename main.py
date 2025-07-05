@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 from es_utils import search_by_text
 from summarizer import summarize_code
 from datetime import datetime
+import markdown  # Added for markdown to HTML conversion
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -16,10 +17,11 @@ async def search(q: str = Query(..., min_length=3), k: int = 5):
     
     # Get summary of top 3 results
     summary = summarize_code(formatted_results, q)
+    summary_html = markdown.markdown(summary) if summary else ""  # Convert markdown to HTML
     
     return templates.TemplateResponse(
         "search_results.html",
-        {"request": {}, "query": q, "results": formatted_results, "summary": summary}
+        {"request": {}, "query": q, "results": formatted_results, "summary": summary_html}
     )
 
 @app.get("/")
