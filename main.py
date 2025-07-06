@@ -83,6 +83,6 @@ async def get_ast():
 async def ast_visualizer():
     """Serve the AST visualizer interface."""
     return templates.TemplateResponse(
-        "ast_visualizer_clean.html",
+        "ast_visualizer.html",
         {"request": {}}
     )

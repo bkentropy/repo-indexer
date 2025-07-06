@@ -4,24 +4,35 @@
     <title>AST Visualizer</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
         .loading-container {
             text-align: center;
-            padding: 20px;
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin: 20px;
+            padding: 40px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
         }
 
         .loading-spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
             border-radius: 50%;
-            border-top: 3px solid #3498db;
             animation: spin 1s linear infinite;
-            margin-right: 10px;
+            margin-bottom: 15px;
         }
 
         @keyframes spin {
@@ -29,34 +40,51 @@
             100% { transform: rotate(360deg); }
         }
 
-        .node {
+        #visualization {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: auto;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .metadata {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .metadata p {
+            margin: 5px 0;
         }
 
         .node circle {
             fill: #fff;
             stroke: steelblue;
-            stroke-width: 3px;
-        }
-
-        .node:hover circle {
-            fill: #e0e0e0;
-            stroke: #000;
-        }
-
-        .node:hover text {
-            fill: #000;
-            font-weight: bold;
-        }
-
-        .tooltip {
-            position: absolute;
-            background: #fff;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            pointer-events: none;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            stroke-width: 2px;
         }
 
         .node text {
@@ -66,364 +94,236 @@
         .link {
             fill: none;
             stroke: #ccc;
-            stroke-width: 2px;
+            stroke-width: 1.5px;
         }
 
-        #code-input {
-            width: 100%;
-            height: 100px;
-            margin-bottom: 20px;
-        }
-
-        #visualization {
-            width: 100%;
-            height: 600px;
+        .error-message {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
-    <div id="app">
+    <div class="container">
         <h1>Repository AST Visualizer</h1>
-        <div id="visualization"></div>
-        <div id="ast-data" style="display: none;"></div>
-        <div id="loading" class="loading-container" style="display: none;">
+        
+        <div id="loading" class="loading-container">
             <div class="loading-spinner"></div>
             <p>Loading AST data from repository...</p>
         </div>
-        <div id="error" style="display: none; color: red; margin: 20px;">
-            <p>Error: <span id="error-message"></span></p>
+
+        <div id="error" class="error-message" style="display: none;"></div>
+
+        <div id="content" style="display: none;">
+            <div class="controls">
+                <button id="prev-btn">Previous AST</button>
+                <span id="tree-counter">1 of 1</span>
+                <button id="next-btn">Next AST</button>
+            </div>
+
+            <div class="metadata">
+                <h3>Code Information</h3>
+                <p><strong>File:</strong> <span id="file-path">-</span></p>
+                <p><strong>Lines:</strong> <span id="lines">-</span></p>
+                <p><strong>Type:</strong> <span id="node-type">-</span></p>
+            </div>
+
+            <div id="visualization"></div>
         </div>
     </div>
 
-    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
-        // Wait for DOM to be fully loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize D3 visualization
-            const svg = d3.select("#visualization")
-                .append("svg")
-                .attr("width", "100%")
-                .attr("height", "100%")
-                .append("g")
-                .attr("transform", "translate(40,0)");
+            // State
+            let astData = [];
+            let currentTreeIndex = 0;
+            let treeData = null;
+            
+            // DOM elements
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const contentEl = document.getElementById('content');
+            const filePathEl = document.getElementById('file-path');
+            const linesEl = document.getElementById('lines');
+            const nodeTypeEl = document.getElementById('node-type');
+            const treeCounterEl = document.getElementById('tree-counter');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const visualizationEl = document.getElementById('visualization');
 
-            // Function to fetch AST data and initialize visualization
-            const fetchAndVisualize = async () => {
+            // Initialize D3 visualization
+            const margin = {top: 20, right: 120, bottom: 20, left: 120};
+            const width = visualizationEl.clientWidth - margin.left - margin.right;
+            const height = 600 - margin.top - margin.bottom;
+            
+            const svg = d3.select(visualizationEl)
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Event listeners
+            prevBtn.addEventListener('click', showPreviousTree);
+            nextBtn.addEventListener('click', showNextTree);
+
+            // Initial load
+            loadAstData();
+
+            // Functions
+            async function loadAstData() {
                 try {
                     const response = await fetch('/ast');
-                    const astData = await response.json();
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    astData = await response.json();
                     
-                    if (!Array.isArray(astData) || astData.length === 0) {
-                        throw new Error("No AST data received");
+                    if (!astData || astData.length === 0) {
+                        throw new Error('No AST data available');
                     }
                     
-                    // Store the data in the hidden div
-                    document.getElementById("ast-data").textContent = JSON.stringify(astData);
+                    // Hide loading, show content
+                    loadingEl.style.display = 'none';
+                    contentEl.style.display = 'block';
                     
                     // Visualize the first tree
-                    visualizeAstTree(astData[0]);
+                    visualizeTree(0);
                     
-                    // Add navigation buttons
-                    const navButtons = document.createElement("div");
-                    navButtons.innerHTML = `
-                        <button onclick="visualizeNextTree()">Next AST</button>
-                        <div id="metadata"></div>
-                    `;
-                    document.getElementById("app").insertBefore(navButtons, document.getElementById("visualization"));
-                    
-                    // Update metadata for the first tree
-                    const metadata = astData[0].metadata;
-                    document.getElementById("metadata").innerHTML = `
-                        <p>File: ${metadata.file_path}</p>
-                        <p>Lines: ${metadata.start_line}-${metadata.end_line}</p>
-                        <p>Type: ${metadata.type}</p>
-                    `;
                 } catch (error) {
-                    console.error("Error fetching AST data:", error);
-                    document.getElementById("error").style.display = "block";
-                    document.getElementById("error-message").textContent = error.message;
-                    throw error;
+                    console.error('Error loading AST data:', error);
+                    loadingEl.style.display = 'none';
+                    showError(`Failed to load AST data: ${error.message}`);
                 }
-            };
+            }
 
-            // Function to visualize a single AST tree
-            const visualizeAstTree = (treeData) => {
-                // Convert AST to tree structure
-                const treeData = {
-                    name: treeData.type,
-                    children: Object.entries(treeData)
-                        .filter(([key]) => key !== 'type' && key !== 'metadata')
-                        .map(([key, value]) => ({
-                            name: key,
-                            children: Array.isArray(value) ? value.map(v => ({
-                                name: v.type,
-                                children: Object.entries(v)
-                                    .filter(([k]) => k !== 'type')
-                                    .map(([k, val]) => ({
-                                        name: k,
-                                        value: typeof val === 'object' ? JSON.stringify(val) : val
-                                    }))
-                            })) : undefined
-                        }))
-                };
+            function showError(message) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+            }
 
-                // Update the visualization
-                const root = d3.hierarchy(treeData);
-                const tree = d3.tree().size([600, 400]);
-                const nodes = tree(root);
-                const links = root.links();
+            function showPreviousTree() {
+                if (astData.length <= 1) return;
+                currentTreeIndex = (currentTreeIndex - 1 + astData.length) % astData.length;
+                visualizeTree(currentTreeIndex);
+            }
 
-                // Remove existing nodes and links
-                svg.selectAll(".node").remove();
-                svg.selectAll(".link").remove();
-
-                // Add links
-                svg.selectAll(".link")
-                    .data(links)
-                    .enter().append("path")
-                    .attr("class", "link")
-                    .attr("d", d => `M${d.source.x},${d.source.y}C${d.source.x},${(d.source.y + d.target.y) / 2} ${d.target.x},${(d.source.y + d.target.y) / 2} ${d.target.x},${d.target.y}`);
-
-                // Add nodes
-                const node = svg.selectAll(".node")
-                    .data(nodes)
-                    .enter().append("g")
-                    .attr("class", "node")
-                    .attr("transform", d => `translate(${d.x},${d.y})`);
-
-                node.append("circle")
-                    .attr("r", 10);
-
-                node.append("text")
-                    .attr("dy", 3)
-                    .attr("x", d => d.children ? -13 : 13)
-                    .style("text-anchor", d => d.children ? "end" : "start")
-                    .text(d => d.data.name);
-
-                // Add tooltips
-                node.on("mouseover", function(event, d) {
-                    const tooltip = d3.select("#tooltip");
-                    tooltip.style("visibility", "visible");
-                    
-                    let content = "";
-                    if (d.data.value) {
-                        content = `Value: ${d.data.value}`;
-                    } else if (d.data.children) {
-                        content = `Children: ${d.data.children.length}`;
-                    }
-                    
-                    tooltip.html(content)
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 10) + "px");
-                })
-                .on("mouseout", function() {
-                    d3.select("#tooltip").style("visibility", "hidden");
-                });
-            };
-
-            // Function to cycle through AST trees
-            let currentTreeIndex = 0;
-            const visualizeNextTree = () => {
-                const astData = JSON.parse(document.getElementById("ast-data").textContent);
-                if (!astData || astData.length === 0) {
-                    alert("No AST data available");
-                    return;
-                }
-
+            function showNextTree() {
+                if (astData.length <= 1) return;
                 currentTreeIndex = (currentTreeIndex + 1) % astData.length;
-                const tree = astData[currentTreeIndex];
-                visualizeAstTree(tree);
+                visualizeTree(currentTreeIndex);
+            }
 
-                // Update metadata display
-                const metadata = tree.metadata;
-                document.getElementById("metadata").innerHTML = `
-                    <p>File: ${metadata.file_path}</p>
-                    <p>Lines: ${metadata.start_line}-${metadata.end_line}</p>
-                    <p>Type: ${metadata.type}</p>
-                `;
-            };
+            function updateMetadata(metadata) {
+                filePathEl.textContent = metadata.file_path || '-';
+                linesEl.textContent = metadata.start_line ? 
+                    `${metadata.start_line}-${metadata.end_line}` : '-';
+                nodeTypeEl.textContent = metadata.type || '-';
+                
+                // Update tree counter
+                treeCounterEl.textContent = `${currentTreeIndex + 1} of ${astData.length}`;
+                
+                // Update button states
+                prevBtn.disabled = astData.length <= 1;
+                nextBtn.disabled = astData.length <= 1;
+            }
 
-            // Initial visualization
-            const loadingDiv = document.getElementById("loading");
-            loadingDiv.style.display = "block";
+            function visualizeTree(index) {
+                if (index < 0 || index >= astData.length) return;
+                
+                const treeItem = astData[index];
+                
+                // Update metadata
+                if (treeItem.metadata) {
+                    updateMetadata(treeItem.metadata);
+                }
+                
+                // Process the AST tree for visualization
+                const root = processAstNode(treeItem);
+                
+                // Clear previous visualization
+                svg.selectAll('*').remove();
+                
+                // Layout the tree
+                const treeLayout = d3.tree().size([height, width]);
+                const rootNode = d3.hierarchy(root);
+                const treeData = treeLayout(rootNode);
+                
+                // Draw links
+                svg.selectAll('.link')
+                    .data(treeData.links())
+                    .enter()
+                    .append('path')
+                    .attr('class', 'link')
+                    .attr('d', d3.linkHorizontal()
+                        .x(d => d.y)
+                        .y(d => d.x));
+                
+                // Create node groups
+                const nodes = svg.selectAll('.node')
+                    .data(treeData.descendants())
+                    .enter()
+                    .append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.y},${d.x})`);
+                
+                // Add circles to nodes
+                nodes.append('circle')
+                    .attr('r', 4);
+                
+                // Add text labels
+                nodes.append('text')
+                    .attr('dy', '.31em')
+                    .attr('x', d => d.children ? -13 : 13)
+                    .style('text-anchor', d => d.children ? 'end' : 'start')
+                    .text(d => d.data.name);
+            }
             
-            fetchAndVisualize().then(() => {
-                loadingDiv.style.display = "none";
-            }).catch(error => {
-                loadingDiv.style.display = "none";
-                console.error("Failed to initialize visualization:", error);
-            });
+            function processAstNode(node) {
+                if (!node) return { name: 'undefined' };
+                
+                // Create a simplified node structure for visualization
+                const simpleNode = {
+                    name: node.type || 'root',
+                    children: []
+                };
+                
+                // Process child nodes
+                for (const key in node) {
+                    if (key === 'type' || key === 'metadata') continue;
+                    
+                    const value = node[key];
+                    
+                    if (Array.isArray(value)) {
+                        // Process array of nodes
+                        const children = value
+                            .filter(item => item && typeof item === 'object')
+                            .map(processAstNode);
+                        
+                        if (children.length > 0) {
+                            simpleNode.children.push({
+                                name: `${key} [${children.length}]`,
+                                children: children
+                            });
+                        }
+                    } else if (value && typeof value === 'object') {
+                        // Process single node
+                        simpleNode.children.push(processAstNode(value));
+                    } else if (value !== null && value !== undefined) {
+                        // Process primitive values
+                        simpleNode.children.push({
+                            name: `${key}: ${value}`
+                        });
+                    }
+                }
+                
+                return simpleNode;
+            }
         });
-    </script>
-</body>
-</html>
-    <h1>Repository AST Visualizer</h1>
-    <div id="visualization"></div>
-    <div id="ast-data" style="display: none;"></div>
-    <div id="loading" class="loading-container" style="display: none;">
-        <div class="loading-spinner"></div>
-        <p>Loading AST data from repository...</p>
-    </div>
-
-    <script>
-        // Initialize D3 visualization
-        const svg = d3.select("#visualization")
-            .append("svg")
-            .attr("width", "100%")
-            .attr("height", "100%")
-            .append("g")
-            .attr("transform", "translate(40,0)");
-
-        // Function to fetch AST data and initialize visualization
-        const fetchAndVisualize = async () => {
-            try {
-                const response = await fetch('/ast');
-                const astData = await response.json();
-                
-                if (astData && astData.length > 0) {
-                    // Store the data in the hidden div
-                    document.getElementById("ast-data").textContent = JSON.stringify(astData);
-                    
-                    // Visualize the first tree
-                    visualizeAstTree(astData[0]);
-                    
-                    // Add navigation buttons
-                    const navButtons = document.createElement("div");
-                    navButtons.innerHTML = `
-                        <button onclick="visualizeNextTree()">Next AST</button>
-                        <div id="metadata"></div>
-                    `;
-                    document.body.insertBefore(navButtons, document.getElementById("visualization"));
-                    
-                    // Update metadata for the first tree
-                    const metadata = astData[0].metadata;
-                    document.getElementById("metadata").innerHTML = `
-                        <p>File: ${metadata.file_path}</p>
-                        <p>Lines: ${metadata.start_line}-${metadata.end_line}</p>
-                        <p>Type: ${metadata.type}</p>
-                    `;
-                } else {
-                    alert("No AST data available");
-                }
-            } catch (error) {
-                console.error("Error fetching AST data:", error);
-                alert("Failed to fetch AST data. Please check if the server is running.");
-            }
-        };
-
-        // Function to visualize a single AST tree
-        const visualizeAstTree = (treeData) => {
-            // Convert AST to tree structure
-            const treeData = {
-                name: treeData.type,
-                children: Object.entries(treeData)
-                    .filter(([key]) => key !== 'type' && key !== 'metadata')
-                    .map(([key, value]) => ({
-                        name: key,
-                        children: Array.isArray(value) ? value.map(v => ({
-                            name: v.type,
-                            children: Object.entries(v)
-                                .filter(([k]) => k !== 'type')
-                                .map(([k, val]) => ({
-                                    name: k,
-                                    value: typeof val === 'object' ? JSON.stringify(val) : val
-                                }))
-                        })) : undefined
-                    }))
-            };
-
-            // Update the visualization
-            const root = d3.hierarchy(treeData);
-            const tree = d3.tree().size([600, 400]);
-            const nodes = tree(root);
-            const links = root.links();
-
-            // Remove existing nodes and links
-            svg.selectAll(".node").remove();
-            svg.selectAll(".link").remove();
-
-            // Add links
-            svg.selectAll(".link")
-                .data(links)
-                .enter().append("path")
-                .attr("class", "link")
-                .attr("d", d => `M${d.source.x},${d.source.y}C${d.source.x},${(d.source.y + d.target.y) / 2} ${d.target.x},${(d.source.y + d.target.y) / 2} ${d.target.x},${d.target.y}`);
-
-            // Add nodes
-            const node = svg.selectAll(".node")
-                .data(nodes)
-                .enter().append("g")
-                .attr("class", "node")
-                .attr("transform", d => `translate(${d.x},${d.y})`);
-
-            node.append("circle")
-                .attr("r", 10);
-
-            node.append("text")
-                .attr("dy", 3)
-                .attr("x", d => d.children ? -13 : 13)
-                .style("text-anchor", d => d.children ? "end" : "start")
-                .text(d => d.data.name);
-
-            // Add tooltips
-            node.on("mouseover", function(event, d) {
-                const tooltip = d3.select("#tooltip");
-                tooltip.style("visibility", "visible");
-                
-                let content = "";
-                if (d.data.value) {
-                    content = `Value: ${d.data.value}`;
-                } else if (d.data.children) {
-                    content = `Children: ${d.data.children.length}`;
-                }
-                
-                tooltip.html(content)
-                    .style("left", (event.pageX + 10) + "px")
-                    .style("top", (event.pageY - 10) + "px");
-            })
-            .on("mouseout", function() {
-                d3.select("#tooltip").style("visibility", "hidden");
-            });
-        };
-
-        // Function to cycle through AST trees
-        let currentTreeIndex = 0;
-        const visualizeNextTree = () => {
-            const astData = JSON.parse(document.getElementById("ast-data").textContent);
-            if (!astData || astData.length === 0) {
-                alert("No AST data available");
-                return;
-            }
-
-            currentTreeIndex = (currentTreeIndex + 1) % astData.length;
-            const tree = astData[currentTreeIndex];
-            visualizeAstTree(tree);
-
-            // Update metadata display
-            const metadata = tree.metadata;
-            document.getElementById("metadata").innerHTML = `
-                <p>File: ${metadata.file_path}</p>
-                <p>Lines: ${metadata.start_line}-${metadata.end_line}</p>
-                <p>Type: ${metadata.type}</p>
-            `;
-        };
-
-        // Initial visualization
-        window.onload = async () => {
-            const loadingDiv = document.getElementById("loading");
-            loadingDiv.style.display = "block";
-            
-            try {
-                await fetchAndVisualize();
-                loadingDiv.style.display = "none";
-            } catch (error) {
-                loadingDiv.innerHTML = `
-                    <div class="loading-spinner"></div>
-                    <p>Error loading AST data: ${error.message}</p>
-                `;
-                loadingDiv.style.display = "block";
-            }
-        };
     </script>
 </body>
 </html>
