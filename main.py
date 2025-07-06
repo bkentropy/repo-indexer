@@ -81,4 +81,8 @@ async def get_ast():
 
 @app.get("/ast-visualizer")
 async def ast_visualizer():
-    return templates.TemplateResponse("ast_visualizer.html", {"request": {}})
+    """Serve the AST visualizer interface."""
+    return templates.TemplateResponse(
+        "ast_visualizer_clean.html",
+        {"request": {}}
+    )

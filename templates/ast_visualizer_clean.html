@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AST Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: 40px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #visualization {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: auto;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .metadata {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .metadata p {
+            margin: 5px 0;
+        }
+
+        .node circle {
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 2px;
+        }
+
+        .node text {
+            font: 12px sans-serif;
+        }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 1.5px;
+        }
+
+        .error-message {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Repository AST Visualizer</h1>
+        
+        <div id="loading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading AST data from repository...</p>
+        </div>
+
+        <div id="error" class="error-message" style="display: none;"></div>
+
+        <div id="content" style="display: none;">
+            <div class="controls">
+                <button id="prev-btn">Previous AST</button>
+                <span id="tree-counter">1 of 1</span>
+                <button id="next-btn">Next AST</button>
+            </div>
+
+            <div class="metadata">
+                <h3>Code Information</h3>
+                <p><strong>File:</strong> <span id="file-path">-</span></p>
+                <p><strong>Lines:</strong> <span id="lines">-</span></p>
+                <p><strong>Type:</strong> <span id="node-type">-</span></p>
+            </div>
+
+            <div id="visualization"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // State
+            let astData = [];
+            let currentTreeIndex = 0;
+            let treeData = null;
+            
+            // DOM elements
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const contentEl = document.getElementById('content');
+            const filePathEl = document.getElementById('file-path');
+            const linesEl = document.getElementById('lines');
+            const nodeTypeEl = document.getElementById('node-type');
+            const treeCounterEl = document.getElementById('tree-counter');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const visualizationEl = document.getElementById('visualization');
+
+            // Initialize D3 visualization
+            const margin = {top: 20, right: 120, bottom: 20, left: 120};
+            const width = visualizationEl.clientWidth - margin.left - margin.right;
+            const height = 600 - margin.top - margin.bottom;
+            
+            const svg = d3.select(visualizationEl)
+                .append('svg')
+                .attr('width', '100%')
+                .attr('height', '100%')
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Event listeners
+            prevBtn.addEventListener('click', showPreviousTree);
+            nextBtn.addEventListener('click', showNextTree);
+
+            // Initial load
+            loadAstData();
+
+            // Functions
+            async function loadAstData() {
+                try {
+                    const response = await fetch('/ast');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    astData = await response.json();
+                    
+                    if (!astData || astData.length === 0) {
+                        throw new Error('No AST data available');
+                    }
+                    
+                    // Hide loading, show content
+                    loadingEl.style.display = 'none';
+                    contentEl.style.display = 'block';
+                    
+                    // Visualize the first tree
+                    visualizeTree(0);
+                    
+                } catch (error) {
+                    console.error('Error loading AST data:', error);
+                    loadingEl.style.display = 'none';
+                    showError(`Failed to load AST data: ${error.message}`);
+                }
+            }
+
+            function showError(message) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+            }
+
+            function showPreviousTree() {
+                if (astData.length <= 1) return;
+                currentTreeIndex = (currentTreeIndex - 1 + astData.length) % astData.length;
+                visualizeTree(currentTreeIndex);
+            }
+
+            function showNextTree() {
+                if (astData.length <= 1) return;
+                currentTreeIndex = (currentTreeIndex + 1) % astData.length;
+                visualizeTree(currentTreeIndex);
+            }
+
+            function updateMetadata(metadata) {
+                filePathEl.textContent = metadata.file_path || '-';
+                linesEl.textContent = metadata.start_line ? 
+                    `${metadata.start_line}-${metadata.end_line}` : '-';
+                nodeTypeEl.textContent = metadata.type || '-';
+                
+                // Update tree counter
+                treeCounterEl.textContent = `${currentTreeIndex + 1} of ${astData.length}`;
+                
+                // Update button states
+                prevBtn.disabled = astData.length <= 1;
+                nextBtn.disabled = astData.length <= 1;
+            }
+
+            function visualizeTree(index) {
+                if (index < 0 || index >= astData.length) return;
+                
+                const treeItem = astData[index];
+                
+                // Update metadata
+                if (treeItem.metadata) {
+                    updateMetadata(treeItem.metadata);
+                }
+                
+                // Process the AST tree for visualization
+                const root = processAstNode(treeItem);
+                
+                // Clear previous visualization
+                svg.selectAll('*').remove();
+                
+                // Layout the tree
+                const treeLayout = d3.tree().size([height, width]);
+                const rootNode = d3.hierarchy(root);
+                const treeData = treeLayout(rootNode);
+                
+                // Draw links
+                svg.selectAll('.link')
+                    .data(treeData.links())
+                    .enter()
+                    .append('path')
+                    .attr('class', 'link')
+                    .attr('d', d3.linkHorizontal()
+                        .x(d => d.y)
+                        .y(d => d.x));
+                
+                // Create node groups
+                const nodes = svg.selectAll('.node')
+                    .data(treeData.descendants())
+                    .enter()
+                    .append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.y},${d.x})`);
+                
+                // Add circles to nodes
+                nodes.append('circle')
+                    .attr('r', 4);
+                
+                // Add text labels
+                nodes.append('text')
+                    .attr('dy', '.31em')
+                    .attr('x', d => d.children ? -13 : 13)
+                    .style('text-anchor', d => d.children ? 'end' : 'start')
+                    .text(d => d.data.name);
+            }
+            
+            function processAstNode(node) {
+                if (!node) return { name: 'undefined' };
+                
+                // Create a simplified node structure for visualization
+                const simpleNode = {
+                    name: node.type || 'root',
+                    children: []
+                };
+                
+                // Process child nodes
+                for (const key in node) {
+                    if (key === 'type' || key === 'metadata') continue;
+                    
+                    const value = node[key];
+                    
+                    if (Array.isArray(value)) {
+                        // Process array of nodes
+                        const children = value
+                            .filter(item => item && typeof item === 'object')
+                            .map(processAstNode);
+                        
+                        if (children.length > 0) {
+                            simpleNode.children.push({
+                                name: `${key} [${children.length}]`,
+                                children: children
+                            });
+                        }
+                    } else if (value && typeof value === 'object') {
+                        // Process single node
+                        simpleNode.children.push(processAstNode(value));
+                    } else if (value !== null && value !== undefined) {
+                        // Process primitive values
+                        simpleNode.children.push({
+                            name: `${key}: ${value}`
+                        });
+                    }
+                }
+                
+                return simpleNode;
+            }
+        });
+    </script>
+</body>
+</html>
