@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from es_utils import search_by_text
 from summarizer import summarize_code
 from datetime import datetime
@@ -10,6 +11,9 @@ import json
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/search")
 async def search(q: str = Query(..., min_length=3), k: int = 5):
