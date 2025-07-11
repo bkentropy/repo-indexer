@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function visualizeTree(index) {
         if (index < 0 || index >= astData.length) return;
         
-        const treeItem = astData[index];
+        const treeItem = astData;
         
         // Update metadata
         if (treeItem.metadata) {
@@ -167,11 +167,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr('r', 4);
         
         // Add text labels
-        nodes.append('text')
-            .attr('dy', '.31em')
-            .attr('x', d => d.children ? -13 : 13)
-            .style('text-anchor', d => d.children ? 'end' : 'start')
-            .text(d => d.data.name);
+        // nodes.append('text')
+        //     .attr('dy', '.31em')
+        //     .attr('x', d => d.children ? -13 : 13)
+        //     .style('text-anchor', d => d.children ? 'end' : 'start')
+        //     .text(d => d.data.name);
         
         // Reset zoom
         const t = d3.zoomIdentity;
