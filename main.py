@@ -211,10 +211,8 @@ async def get_ast():
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+
 @app.get("/ast-visualizer")
 async def ast_visualizer():
     """Serve the AST visualizer interface."""
-    return templates.TemplateResponse(
-        "ast_visualizer.html",
-        {"request": {}}
-    )
+    return templates.TemplateResponse("ast_visualizer.html", {"request": {}})
