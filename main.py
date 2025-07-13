@@ -166,7 +166,7 @@ async def root(request: Request):
 async def get_ast():
     try:
         # Query Elasticsearch for all code chunks using search_by_text
-        results = search_by_text("", top_k=1000)  # Empty query for match_all
+        results = search_by_text("", top_k=15)  # Empty query for match_all
 
         # Process each chunk and create AST
         ast_trees = []
