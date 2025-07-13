@@ -14,7 +14,8 @@ class ModelCache:
 
     def __init__(self):
         if not hasattr(self, 'model'):
-            self.model = SentenceTransformer("all-MiniLM-L6-v2")
+            self.model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder="./.cache")
+
     
     def encode(self, query):
         return self.model.encode(query)
