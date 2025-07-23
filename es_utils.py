@@ -40,14 +40,25 @@ def search_by_text(query: str, top_k: int = 5):
     model = ModelCache()
     query_vector = model.encode(query).tolist()
 
+    # body = {
+    #     "size": top_k,
+    #     "query": {
+    #         "script_score": {
+    #             "query": {"match_all": {}},
+    #             "script": {
+    #                 "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+    #                 "params": {"query_vector": query_vector}
+    #             }
+    #         }
+    #     }
+    # }
+
     body = {
-        "size": top_k,
         "query": {
-            "script_score": {
-                "query": {"match_all": {}},
-                "script": {
-                    "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                    "params": {"query_vector": query_vector}
+            "knn": {
+                "embedding": {
+                    "vector": query_vector,
+                    "k": top_k
                 }
             }
         }

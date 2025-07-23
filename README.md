@@ -62,3 +62,8 @@ conda activate repo-indexer-dev
 ```bash
 python -m cli index_repo <github_url>
 ```
+
+
+# TODO:
+[ ] Host embedding model separately
+[ ] Handle ElasticSearch and OpenSearch?
