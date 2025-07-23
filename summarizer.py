@@ -30,11 +30,15 @@ def summarize_code(results, query):
     top_results = results[:3]
 
     # Create a prompt for summarization
-    prompt = f"""You are a helpful code assistant. Please analyze the following code snippets
+    prompt_old = f"""You are a helpful code assistant. Please analyze the following code snippets
     and provide a concise summary of their key functionality and relevance to the query: "{query}".
 
     Provide a single summary that captures the essence of the code snippets.
 
+    Code snippets:
+    """
+    prompt = """Please analyze the following code snippets.
+    Provide a single summary that captures the essence of the code snippets, and a code example if you can.
     Code snippets:
     """
 
