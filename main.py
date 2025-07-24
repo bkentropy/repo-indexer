@@ -21,13 +21,9 @@ async def search(q: str = Query(..., min_length=3), k: int = 3):
     results = search_by_text(q, top_k=k)
     formatted_results = [{k: v for k, v in result.items() if k != "embedding"} for result in results]
 
-    # Get summary of top 3 results
-    summary = summarize_code(formatted_results, q)
-    summary_html = markdown.markdown(summary, extensions=['fenced_code', 'codehilite']) if summary else ""  # Convert markdown to HTML with extensions
-
     return templates.TemplateResponse(
         "search_results.html",
-        {"request": {}, "query": q, "results": formatted_results, "summary": summary_html}
+        {"request": {}, "query": q, "results": formatted_results}
     )
 
 @app.get("/summarizer")
