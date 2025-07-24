@@ -58,10 +58,11 @@ def search_by_text(query: str, top_k: int = 5):
             "knn": {
                 "embedding": {
                     "vector": query_vector,
-                    "k": top_k
+                    "k": top_k,
                 }
             }
-        }
+        },
+        "size": top_k
     }
     results = es.search(index=INDEX_NAME, body=body) # type: ignore
     return [hit["_source"] for hit in results["hits"]["hits"]]

@@ -5,11 +5,10 @@ from openai import OpenAI
 
 load_dotenv()
 
-# INFERENCE_MODEL = os.getenv("OPENAI_MODEL", "openhermes-2.5-mistral-7b")
 INFERENCE_MODEL = os.getenv("OPENAI_MODEL", "/Users/bkustra/.ai-navigator/models/microsoft/Phi-3-mini-4k-instruct/Phi-3-Mini-4K-Instruct_Q8_0.gguf")
 client = OpenAI(
     base_url=os.getenv("OPENAI_HOST", "http://localhost:8084"),
-    api_key=os.getenv("OPENAI_API_KEY", "lmstudio")
+    api_key=os.getenv("OPENAI_API_KEY", "ai-nav")
 )
 
 def summarize_code(results, query):
@@ -30,17 +29,23 @@ def summarize_code(results, query):
     top_results = results[:3]
 
     # Create a prompt for summarization
-    prompt_old = f"""You are a helpful code assistant. Please analyze the following code snippets
+    prompt_1 = f"""You are a helpful code assistant. Please analyze the following code snippets
     and provide a concise summary of their key functionality and relevance to the query: "{query}".
 
     Provide a single summary that captures the essence of the code snippets.
 
     Code snippets:
     """
-    prompt = """Please analyze the following code snippets.
+    prompt_2 = """Please analyze the following code snippets.
     Provide a single summary that captures the essence of the code snippets, and a code example if you can.
     Code snippets:
     """
+    prompt_3 = """Please analyze the following code snippets.
+    Provide a single summary that captures the essence of the code snippets, and a code example if you can.
+    Brief is better than long.
+    Code snippets:
+    """
+    prompt = prompt_3
 
     for idx, result in enumerate(top_results, 1):
         prompt += f"\n\n## Code Snippet {idx}\n\nFile: {result.get('file_path', 'Unknown')} Type: {result.get('type', 'Unknown')} \n{result.get('code', '')}"
@@ -60,3 +65,18 @@ def summarize_code(results, query):
 
     except Exception as e:
         return f"Error generating summary: {str(e)}"
+
+
+### helpers
+def query(prompt):
+    return client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful code assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+def get_content(response):
+    return response.choices[0].message.content
