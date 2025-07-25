@@ -23,6 +23,7 @@ The server architecture is as follows:
 graph TD;
 U["user"] --> |"ask question"| A["web server (embeds query)"]
 A --> |"run semantic query"| B["OpenSearch"]
+B --> A
 A ---> C["LLM: summarizes top 3 results"]
 C --> D["web server: return response"]
 ```
