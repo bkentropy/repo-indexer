@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Results - Streaming</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .result-header {
+            margin-bottom: 10px;
+        }
+        .filename {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .code {
+            background-color: white;
+            padding: 10px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .query {
+            margin-bottom: 20px;
+        }
+        .summary {
+            background-color: #f0f9ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            min-height: 100px;
+        }
+        .summary-content {
+            line-height: 1.6;
+            color: #333;
+        }
+        .summary-content h1, .summary-content h2, .summary-content h3, .summary-content h4 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .summary-content h2 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .summary-content code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .summary-content pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #3498db;
+        }
+        .summary-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #333;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="query">
+        <h2>Search Results for: {{ query }}</h2>
+        <div class="summary">
+            <h3>Summary of Top Results:</h3>
+            <div class="status" id="status">Initializing...</div>
+            <div class="summary-content" id="summary-content">
+                <span class="loading"></span>Generating summary...
+            </div>
+        </div>
+    </div>
+    {% for result in results %}
+    <div class="result">
+        <div class="result-header">
+            <span class="filename">{{ result.file_path }}</span>
+            <span class="type">({{ result.type }})</span>
+        </div>
+        <div class="code">{{ result.code }}</div>
+    </div>
+    {% endfor %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusEl = document.getElementById('status');
+            const summaryContentEl = document.getElementById('summary-content');
+
+            // Get the query from the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('q');
+
+            if (!query) {
+                statusEl.textContent = 'No query provided';
+                return;
+            }
+
+            // Connect to the streaming endpoint
+            const eventSource = new EventSource(`/summarizer/stream?q=${encodeURIComponent(query)}`);
+
+            let summaryText = '';
+
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    switch(data.type) {
+                        case 'start':
+                            statusEl.textContent = `Found ${data.results_count} results. Generating summary...`;
+                            summaryContentEl.innerHTML = '<span class="cursor"></span>';
+                            break;
+
+                        case 'chunk':
+                            summaryText += data.content;
+                            // Convert markdown to HTML (simple conversion)
+                            const htmlContent = convertMarkdownToHtml(summaryText);
+                            summaryContentEl.innerHTML = htmlContent + '<span class="cursor"></span>';
+                            break;
+
+                        case 'complete':
+                            statusEl.textContent = 'Summary complete';
+                            summaryContentEl.innerHTML = convertMarkdownToHtml(summaryText);
+                            eventSource.close();
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Error parsing event data:', error);
+                }
+            };
+
+            eventSource.onerror = function(error) {
+                statusEl.textContent = 'Error: Connection failed';
+                summaryContentEl.innerHTML = '<span style="color: red;">Error connecting to streaming service</span>';
+                eventSource.close();
+            };
+
+            // Simple markdown to HTML converter
+            function convertMarkdownToHtml(text) {
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                    .replace(/\n/g, '<br>');
+            }
+        });
+    </script>
+</body>
+</html>

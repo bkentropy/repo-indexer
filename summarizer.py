@@ -2,6 +2,7 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from dotenv import load_dotenv
 from openai import OpenAI
+import asyncio
 
 load_dotenv()
 
@@ -61,6 +62,43 @@ def summarize_code(results, query):
         return f"Error generating summary: {str(e)}"
 
 
+async def summarize_code_stream(results, query):
+    """
+    Stream the summarization of the top 3 search results using an OpenAI-compatible model.
+
+    Args:
+        results (list): List of search results
+        query (str): The original search query
+
+    Yields:
+        str: Chunks of the summary as they're generated
+    """
+    if not results:
+        yield "No results found for the search query."
+        return
+
+    # Take top 3 results
+    top_results = results[:3]
+
+    # Create a prompt for summarization
+    prompt_3 = """Please analyze the following code snippets.
+    Provide a single summary that captures the essence of the code snippets.
+    Brief is better than long.
+    Code snippets:
+    """
+    prompt = prompt_3
+
+    for idx, result in enumerate(top_results, 1):
+        prompt += f"\n\n## Code Snippet {idx}\n\nFile: {result.get('file_path', 'Unknown')} Type: {result.get('type', 'Unknown')} \n{result.get('code', '')}"
+
+    try:
+        async for chunk in query_model_stream(prompt):
+            yield chunk
+
+    except Exception as e:
+        yield f"Error generating summary: {str(e)}"
+
+
 ### helpers
 def query_model(prompt):
     return client.chat.completions.create(
@@ -72,5 +110,27 @@ def query_model(prompt):
             temperature=0.7,
             max_tokens=500
         )
+
+async def query_model_stream(prompt):
+    """Stream the model response chunk by chunk."""
+    try:
+        stream = client.chat.completions.create(
+            model=INFERENCE_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a helpful code assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500,
+            stream=True
+        )
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                yield chunk.choices[0].delta.content
+
+    except Exception as e:
+        yield f"Error in streaming: {str(e)}"
+
 def get_content(response):
     return response.choices[0].message.content

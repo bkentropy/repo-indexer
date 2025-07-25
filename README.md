@@ -63,6 +63,11 @@ conda activate repo-indexer-dev
 python -m cli index_repo <github_url>
 ```
 
+Visit:
+```
+http://localhost:8000/summarizer/streaming-ui?q=make%20a%20post%20request
+```
+
 
 # TODO:
 [ ] Host embedding model separately

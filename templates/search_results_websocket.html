@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Results - WebSocket Streaming</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .result-header {
+            margin-bottom: 10px;
+        }
+        .filename {
+            color: #2c3e50;
+            font-weight: bold;
+        }
+        .code {
+            background-color: white;
+            padding: 10px;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+        .query {
+            margin-bottom: 20px;
+        }
+        .summary {
+            background-color: #f0f9ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            min-height: 100px;
+        }
+        .summary-content {
+            line-height: 1.6;
+            color: #333;
+        }
+        .summary-content h1, .summary-content h2, .summary-content h3, .summary-content h4 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .summary-content h2 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .summary-content code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .summary-content pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #3498db;
+        }
+        .summary-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #333;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        .controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .controls input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 10px;
+            width: 300px;
+        }
+        .controls button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <input type="text" id="query-input" placeholder="Enter your search query..." value="{{ query }}">
+        <button id="summarize-btn">Generate Summary</button>
+        <button id="clear-btn">Clear</button>
+    </div>
+
+    <div class="query">
+        <h2>Search Results</h2>
+        <div class="summary">
+            <h3>Summary of Top Results:</h3>
+            <div class="status" id="status">Ready to generate summary...</div>
+            <div class="summary-content" id="summary-content">
+                Enter a query above and click "Generate Summary" to start.
+            </div>
+        </div>
+    </div>
+
+    <div id="results-container">
+        {% for result in results %}
+        <div class="result">
+            <div class="result-header">
+                <span class="filename">{{ result.file_path }}</span>
+                <span class="type">({{ result.type }})</span>
+            </div>
+            <div class="code">{{ result.code }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const queryInput = document.getElementById('query-input');
+            const summarizeBtn = document.getElementById('summarize-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const statusEl = document.getElementById('status');
+            const summaryContentEl = document.getElementById('summary-content');
+            const resultsContainer = document.getElementById('results-container');
+
+            let websocket = null;
+            let summaryText = '';
+
+            // Initialize WebSocket connection
+            function connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws/summarizer`;
+
+                websocket = new WebSocket(wsUrl);
+
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    statusEl.textContent = 'Connected. Ready to generate summary.';
+                };
+
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+
+                        switch(data.type) {
+                            case 'start':
+                                statusEl.textContent = `Found ${data.results_count} results. Generating summary...`;
+                                summaryContentEl.innerHTML = '<span class="cursor"></span>';
+                                summaryText = '';
+                                break;
+
+                            case 'chunk':
+                                summaryText += data.content;
+                                const htmlContent = convertMarkdownToHtml(summaryText);
+                                summaryContentEl.innerHTML = htmlContent + '<span class="cursor"></span>';
+                                break;
+
+                            case 'complete':
+                                statusEl.textContent = 'Summary complete';
+                                summaryContentEl.innerHTML = convertMarkdownToHtml(summaryText);
+                                summarizeBtn.disabled = false;
+                                break;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    statusEl.textContent = 'Error: Connection failed';
+                };
+
+                websocket.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    statusEl.textContent = 'Disconnected. Click "Generate Summary" to reconnect.';
+                };
+            }
+
+            // Connect on page load
+            connectWebSocket();
+
+            // Event listeners
+            summarizeBtn.addEventListener('click', function() {
+                const query = queryInput.value.trim();
+                if (!query) {
+                    alert('Please enter a search query');
+                    return;
+                }
+
+                if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                    connectWebSocket();
+                    setTimeout(() => {
+                        sendSummarizeRequest(query);
+                    }, 1000);
+                } else {
+                    sendSummarizeRequest(query);
+                }
+            });
+
+            clearBtn.addEventListener('click', function() {
+                summaryContentEl.innerHTML = 'Enter a query above and click "Generate Summary" to start.';
+                statusEl.textContent = 'Ready to generate summary...';
+                summaryText = '';
+            });
+
+            function sendSummarizeRequest(query) {
+                summarizeBtn.disabled = true;
+                statusEl.textContent = 'Sending request...';
+
+                websocket.send(JSON.stringify({
+                    type: 'summarize',
+                    query: query,
+                    k: 3
+                }));
+            }
+
+            // Simple markdown to HTML converter
+            function convertMarkdownToHtml(text) {
+                return text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                    .replace(/\n/g, '<br>');
+            }
+
+            // Handle Enter key in input
+            queryInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    summarizeBtn.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

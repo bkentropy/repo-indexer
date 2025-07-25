@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from es_utils import search_by_text
-from summarizer import summarize_code
+from summarizer import summarize_code, summarize_code_stream
 from datetime import datetime
 import markdown  # Added for markdown to HTML conversion
 import ast
@@ -14,6 +14,62 @@ templates = Jinja2Templates(directory="templates")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/summarizer")
+async def websocket_summarizer(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Wait for the query from the client
+            data = await websocket.receive_text()
+            message = json.loads(data)
+
+            if message.get("type") == "summarize":
+                query = message.get("query", "")
+                k = message.get("k", 3)
+
+                # Get search results
+                results = search_by_text(query, top_k=k)
+                formatted_results = [{k: v for k, v in result.items() if k != "embedding"} for result in results]
+
+                # Send initial status
+                await websocket.send_text(json.dumps({
+                    "type": "start",
+                    "query": query,
+                    "results_count": len(formatted_results)
+                }))
+
+                # Stream the summary
+                async for chunk in summarize_code_stream(formatted_results, query):
+                    await websocket.send_text(json.dumps({
+                        "type": "chunk",
+                        "content": chunk
+                    }))
+
+                # Send completion
+                await websocket.send_text(json.dumps({
+                    "type": "complete"
+                }))
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 @app.get("/search")
 async def search(q: str = Query(..., min_length=3), k: int = 3):
@@ -39,6 +95,61 @@ async def summarizer(q: str = Query(..., min_length=3), k: int = 3):
     return templates.TemplateResponse(
         "search_results.html",
         {"request": {}, "query": q, "results": formatted_results, "summary": summary_html}
+    )
+
+@app.get("/summarizer/stream")
+async def summarizer_stream(q: str = Query(..., min_length=3), k: int = 3):
+    """Stream the summarization process using Server-Sent Events."""
+
+    async def generate_summary():
+        # Get search results
+        results = search_by_text(q, top_k=k)
+        formatted_results = [{k: v for k, v in result.items() if k != "embedding"} for result in results]
+
+        # Send initial data
+        yield f"data: {json.dumps({'type': 'start', 'query': q, 'results_count': len(formatted_results)})}\n\n"
+
+        # Stream the summary
+        async for chunk in summarize_code_stream(formatted_results, q):
+            yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
+
+        # Send completion signal
+        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+
+    return StreamingResponse(
+        generate_summary(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+        }
+    )
+
+@app.get("/summarizer/streaming-ui")
+async def summarizer_streaming_ui(q: str = Query(..., min_length=3), k: int = 3):
+    """Serve the streaming UI template."""
+    # Get search results for display
+    results = search_by_text(q, top_k=k)
+    formatted_results = [{k: v for k, v in result.items() if k != "embedding"} for result in results]
+
+    return templates.TemplateResponse(
+        "search_results_streaming.html",
+        {"request": {}, "query": q, "results": formatted_results}
+    )
+
+@app.get("/summarizer/websocket-ui")
+async def summarizer_websocket_ui(q: str = Query("", min_length=0), k: int = 3):
+    """Serve the WebSocket streaming UI template."""
+    # Get search results for display if query is provided
+    results = []
+    if q:
+        results = search_by_text(q, top_k=k)
+    formatted_results = [{k: v for k, v in result.items() if k != "embedding"} for result in results]
+
+    return templates.TemplateResponse(
+        "search_results_websocket.html",
+        {"request": {}, "query": q, "results": formatted_results}
     )
 
 @app.get("/")
