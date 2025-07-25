@@ -7,8 +7,10 @@ load_dotenv()
 
 INFERENCE_MODEL = os.getenv("OPENAI_MODEL", "/Users/bkustra/.ai-navigator/models/microsoft/Phi-3-mini-4k-instruct/Phi-3-Mini-4K-Instruct_Q8_0.gguf")
 client = OpenAI(
-    base_url=os.getenv("OPENAI_HOST", "http://localhost:8084"),
-    api_key=os.getenv("OPENAI_API_KEY", "ai-nav")
+    # base_url=os.getenv("OPENAI_HOST", "http://localhost:8084"),
+    # api_key=os.getenv("OPENAI_API_KEY", "ai-nav")
+    base_url=os.getenv("OPENAI_HOST", "http://localhost:1234/v1"),
+    api_key=os.getenv("OPENAI_API_KEY", "lmstudio")
 )
 
 def summarize_code(results, query):
@@ -41,7 +43,7 @@ def summarize_code(results, query):
     Code snippets:
     """
     prompt_3 = """Please analyze the following code snippets.
-    Provide a single summary that captures the essence of the code snippets, and a code example if you can.
+    Provide a single summary that captures the essence of the code snippets.
     Brief is better than long.
     Code snippets:
     """
@@ -51,15 +53,7 @@ def summarize_code(results, query):
         prompt += f"\n\n## Code Snippet {idx}\n\nFile: {result.get('file_path', 'Unknown')} Type: {result.get('type', 'Unknown')} \n{result.get('code', '')}"
 
     try:
-        response = client.chat.completions.create(
-            model=INFERENCE_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a helpful code assistant."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=500
-        )
+        response = query_model(prompt)
 
         return response.choices[0].message.content
 
@@ -68,7 +62,7 @@ def summarize_code(results, query):
 
 
 ### helpers
-def query(prompt):
+def query_model(prompt):
     return client.chat.completions.create(
             model=INFERENCE_MODEL,
             messages=[
