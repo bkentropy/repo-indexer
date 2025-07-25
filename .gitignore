@@ -48,3 +48,4 @@ logs/
 ehthumbs.db
 Thumbs.db
 tmp/*
+.cache/*

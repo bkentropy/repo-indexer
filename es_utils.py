@@ -36,33 +36,39 @@ def index_chunks(chunks: list):
     for chunk in chunks:
         es.index(index=INDEX_NAME, document=chunk)
 
+def dsl_query(query_vector: str, top_k: int = 5, search_engine_flavor: str = "elasticsearch"):
+    if search_engine_flavor == "elasticsearch":
+        body = {
+            "size": top_k,
+            "query": {
+                "script_score": {
+                    "query": {"match_all": {}},
+                    "script": {
+                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                        "params": {"query_vector": query_vector}
+                    }
+                }
+            }
+        }
+    elif search_engine_flavor == "opensearch":
+        body = {
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": query_vector,
+                        "k": top_k,
+                    }
+                }
+            },
+            "size": top_k
+        }
+
+    return body
+
 def search_by_text(query: str, top_k: int = 5):
     model = ModelCache()
     query_vector = model.encode(query).tolist()
 
-    # body = {
-    #     "size": top_k,
-    #     "query": {
-    #         "script_score": {
-    #             "query": {"match_all": {}},
-    #             "script": {
-    #                 "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-    #                 "params": {"query_vector": query_vector}
-    #             }
-    #         }
-    #     }
-    # }
-
-    body = {
-        "query": {
-            "knn": {
-                "embedding": {
-                    "vector": query_vector,
-                    "k": top_k,
-                }
-            }
-        },
-        "size": top_k
-    }
-    results = es.search(index=INDEX_NAME, body=body) # type: ignore
+    search_engine_flavor = os.getenv("SEARCH_ENGINE_FLAVOR", "elasticsearch")
+    results = es.search(index=INDEX_NAME, body=dsl_query(query_vector, top_k, search_engine_flavor)) # type: ignore
     return [hit["_source"] for hit in results["hits"]["hits"]]

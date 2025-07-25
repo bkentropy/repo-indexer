@@ -72,3 +72,4 @@ http://localhost:8000/summarizer/streaming-ui?q=make%20a%20post%20request
 # TODO:
 [ ] Host embedding model separately
 [ ] Handle ElasticSearch and OpenSearch?
+[ ] Make note of how to create index in both ElasticSearch and OpenSearch
