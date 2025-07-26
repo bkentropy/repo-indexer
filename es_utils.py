@@ -3,7 +3,10 @@ import os
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
-from embedding_model import ModelCache
+from embedding_client import EmbeddingClient
+
+# Initialize the embedding client
+embedding_client = EmbeddingClient("http://localhost:8001")
 
 load_dotenv()
 ES_HOST = os.getenv("ES_HOST", "http://localhost:9200")
@@ -66,8 +69,8 @@ def dsl_query(query_vector: str, top_k: int = 5, search_engine_flavor: str = "el
     return body
 
 def search_by_text(query: str, top_k: int = 5):
-    model = ModelCache()
-    query_vector = model.encode(query).tolist()
+    # Get the embedding vector from the embedding service
+    query_vector = embedding_client.get_embeddings(query)[0]  # [0] because we're only encoding one query
 
     search_engine_flavor = os.getenv("SEARCH_ENGINE_FLAVOR", "elasticsearch")
     results = es.search(index=INDEX_NAME, body=dsl_query(query_vector, top_k, search_engine_flavor)) # type: ignore
