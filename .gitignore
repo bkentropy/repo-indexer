@@ -49,3 +49,5 @@ ehthumbs.db
 Thumbs.db
 tmp/*
 .cache/*
+.embedding.pid
+.server.pid
