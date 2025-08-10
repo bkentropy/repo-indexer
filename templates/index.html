@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Repo Indexer - Home</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Repo Indexer</h1>
+        
+        <div class="routes-section">
+            <h2>Available Routes</h2>
+            <div class="routes-grid">
+                <div class="route-card">
+                    <h3>Search</h3>
+                    <p>Search through repository content</p>
+                    <p><code>GET /search?q={query}&k={top_k}</code></p>
+                    <a href="/search?q=example" class="btn">Try Search</a>
+                </div>
+                
+                <div class="route-card">
+                    <h3>Summarizer</h3>
+                    <p>Get a summary of search results</p>
+                    <p><code>GET /summarizer?q={query}&k={top_k}</code></p>
+                    <a href="/summarizer?q=example" class="btn">Try Summarizer</a>
+                </div>
+                
+                <div class="route-card">
+                    <h3>Streaming Summarizer</h3>
+                    <p>Get real-time summary streaming</p>
+                    <p><code>GET /summarizer/stream?q={query}&k={top_k}</code></p>
+                    <a href="/summarizer/stream?q=example" class="btn">Try Streaming</a>
+                </div>
+                
+                <div class="route-card">
+                    <h3>WebSocket Summarizer</h3>
+                    <p>Interactive summarization with WebSocket</p>
+                    <p><code>GET /summarizer/websocket</code></p>
+                    <a href="/summarizer/websocket" class="btn">Try WebSocket</a>
+                </div>
+                
+                <div class="route-card">
+                    <h3>AST Visualizer</h3>
+                    <p>Visualize Abstract Syntax Trees</p>
+                    <p><code>GET /ast-visualizer</code></p>
+                    <a href="/ast-visualizer" class="btn">Try AST Visualizer</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="static-section">
+            <h2>Static Resources</h2>
+            <p>Static files are served from the <code>/static</code> directory.</p>
+            <p>Available static resources:</p>
+            <ul>
+                <li><a href="/static/css/style.css">/static/css/style.css</a></li>
+                <li><a href="/static/js/main.js">/static/js/main.js</a></li>
+            </ul>
+        </div>
+    </div>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .routes-section, .static-section {
+            margin-bottom: 40px;
+        }
+        .routes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .route-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .route-card h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+    </style>
+</body>
+</html>
