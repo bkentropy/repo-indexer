@@ -49,7 +49,7 @@ wait-for-embedding:
 	@echo "Waiting for embedding service to be ready..."
 	@until curl -s http://localhost:$(EMBEDDING_PORT)/health >/dev/null; do \
 		echo "Waiting for embedding service..."; \
-		sleep 1; \
+		sleep 5; \
 	done
 	@echo "Embedding service is ready!"
 
@@ -62,6 +62,14 @@ start-server: wait-for-embedding
 		nohup $(PYTHON) -m uvicorn main:app --host 0.0.0.0 --port $(SERVER_PORT) --reload > $(SERVER_LOG) 2>&1 & echo $$! > $(SERVER_PID); \
 		echo "Server started with PID: $$(cat $(SERVER_PID))"; \
 		echo "Server is available at http://localhost:$(SERVER_PORT)"; \
+	fi
+
+start-server-dev:
+	@if [ -f "$(SERVER_PID)" ]; then \
+		echo "Server is already running (PID: $$(cat $(SERVER_PID)))"; \
+	else \
+		echo "Starting main server on port $(SERVER_PORT)..."; \
+		$(PYTHON) -m uvicorn main:app --host 0.0.0.0 --port $(SERVER_PORT) --reload; \
 	fi
 
 # Start both services (default)
