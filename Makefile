@@ -1,4 +1,4 @@
-.PHONY: help start stop restart status logs clean
+.PHONY: help start stop restart status logs clean env
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  status           - Show status of all services"
 	@echo "  logs             - Show logs for all services"
 	@echo "  clean            - Remove log files"
+	@echo "  env              - Create or update conda environment from environment-dev.yml"
 
 # Configuration
 EMBEDDING_PORT := 8001
@@ -19,6 +20,7 @@ EMBEDDING_PID := .embedding.pid
 SERVER_PID := .server.pid
 EMBEDDING_LOG := embedding_service.log
 SERVER_LOG := server.log
+ENV_NAME := repo-indexer-dev
 
 # Check if a command exists
 CHECK_CMD := command -v
@@ -34,12 +36,20 @@ start-embedding:
 		echo "Embedding service started with PID: $$(cat $(EMBEDDING_PID))"; \
 	fi
 
+start-embedding-dev:
+	@if [ -f "$(EMBEDDING_PID)" ]; then \
+		echo "Embedding service is already running (PID: $$(cat $(EMBEDDING_PID)))"; \
+	else \
+		echo "Starting embedding service on port $(EMBEDDING_PORT)..."; \
+		$(PYTHON) -m uvicorn embedding_service:app --host 0.0.0.0 --port $(EMBEDDING_PORT) --reload; \
+	fi
+
 # Wait for the embedding service to be ready
 wait-for-embedding:
 	@echo "Waiting for embedding service to be ready..."
 	@until curl -s http://localhost:$(EMBEDDING_PORT)/health >/dev/null; do \
 		echo "Waiting for embedding service..."; \
-		sleep 1; \
+		sleep 5; \
 	done
 	@echo "Embedding service is ready!"
 
@@ -52,6 +62,14 @@ start-server: wait-for-embedding
 		nohup $(PYTHON) -m uvicorn main:app --host 0.0.0.0 --port $(SERVER_PORT) --reload > $(SERVER_LOG) 2>&1 & echo $$! > $(SERVER_PID); \
 		echo "Server started with PID: $$(cat $(SERVER_PID))"; \
 		echo "Server is available at http://localhost:$(SERVER_PORT)"; \
+	fi
+
+start-server-dev:
+	@if [ -f "$(SERVER_PID)" ]; then \
+		echo "Server is already running (PID: $$(cat $(SERVER_PID)))"; \
+	else \
+		echo "Starting main server on port $(SERVER_PORT)..."; \
+		$(PYTHON) -m uvicorn main:app --host 0.0.0.0 --port $(SERVER_PORT) --reload; \
 	fi
 
 # Start both services (default)
@@ -95,10 +113,18 @@ status:
 tail-logs:
 	tail -f $(SERVER_LOG) $(EMBEDDING_LOG)
 
+logs: tail-logs
+
 # Clean up
 clean:
 	rm -f $(EMBEDDING_PID) $(SERVER_PID) $(EMBEDDING_LOG) $(SERVER_LOG)
 	@echo "Cleaned up PID and log files"
+
+# Create or update conda environment
+env:
+	@echo "Creating/updating conda environment $(ENV_NAME) from environment-dev.yml..."
+	@conda env create -f environment-dev.yml -n $(ENV_NAME) || conda env update -f environment-dev.yml -n $(ENV_NAME)
+	@echo "Environment $(ENV_NAME) is ready"
 
 # Helpers
 check-%:
@@ -106,3 +132,4 @@ check-%:
 		echo "$* is required but not installed. Please install it first."; \
 		exit 1; \
 	fi
+
