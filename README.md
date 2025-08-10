@@ -23,8 +23,39 @@ The server architecture is as follows:
 graph TD;
 U["user"] --> |"ask question"| A["web server (embeds query)"]
 A --> |"run semantic query"| B["OpenSearch"]
+B --> A
 A ---> C["LLM: summarizes top 3 results"]
 C --> D["web server: return response"]
+```
+
+## Setup
+
+### Using Conda (Recommended)
+
+1. Create and activate the conda environment:
+```bash
+conda env create -f environment.yml
+conda activate repo-indexer
+```
+
+2. Verify the environment is set up correctly:
+```bash
+python -c "import fastapi, typer, sentence_transformers, elasticsearch; print('All dependencies installed successfully!')"
+```
+
+### Using pip (Alternative)
+
+If you prefer to use pip directly:
+```bash
+pip install -r requirements.txt
+```
+
+### Development Environment
+
+For development with additional tools (pytest, black, flake8, mypy):
+```bash
+conda env create -f environment-dev.yml
+conda activate repo-indexer-dev
 ```
 
 ## Usage
@@ -32,3 +63,14 @@ C --> D["web server: return response"]
 ```bash
 python -m cli index_repo <github_url>
 ```
+
+Visit:
+```
+http://localhost:8000/summarizer/streaming-ui?q=make%20a%20post%20request
+```
+
+
+# TODO:
+[ ] Host embedding model separately
+[ ] Handle ElasticSearch and OpenSearch?
+[ ] Make note of how to create index in both ElasticSearch and OpenSearch

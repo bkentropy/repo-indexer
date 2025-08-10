@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Search Results</title>
+    <link rel="icon" type="image/x-icon" href="/static/lilrobot.ico">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -42,6 +43,32 @@
         .summary-content {
             line-height: 1.6;
             color: #333;
+        }
+        .summary-content h1, .summary-content h2, .summary-content h3, .summary-content h4 {
+            color: #2c3e50;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .summary-content h2 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .summary-content code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .summary-content pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #3498db;
+        }
+        .summary-content pre code {
+            background-color: transparent;
+            padding: 0;
         }
     </style>
 </head>

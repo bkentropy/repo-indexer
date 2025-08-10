@@ -47,3 +47,7 @@ logs/
 .Trashes
 ehthumbs.db
 Thumbs.db
+tmp/*
+.cache/*
+.embedding.pid
+.server.pid

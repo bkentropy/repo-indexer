@@ -3,7 +3,10 @@ import os
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
-from embedding_model import ModelCache
+from embedding_client import EmbeddingClient
+
+# Initialize the embedding client
+embedding_client = EmbeddingClient("http://localhost:8001")
 
 load_dotenv()
 ES_HOST = os.getenv("ES_HOST", "http://localhost:9200")
@@ -36,21 +39,39 @@ def index_chunks(chunks: list):
     for chunk in chunks:
         es.index(index=INDEX_NAME, document=chunk)
 
-def search_by_text(query: str, top_k: int = 5):
-    model = ModelCache()
-    query_vector = model.encode(query).tolist()
-
-    body = {
-        "size": top_k,
-        "query": {
-            "script_score": {
-                "query": {"match_all": {}},
-                "script": {
-                    "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                    "params": {"query_vector": query_vector}
+def dsl_query(query_vector: str, top_k: int = 5, search_engine_flavor: str = "elasticsearch"):
+    if search_engine_flavor == "elasticsearch":
+        body = {
+            "size": top_k,
+            "query": {
+                "script_score": {
+                    "query": {"match_all": {}},
+                    "script": {
+                        "source": "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+                        "params": {"query_vector": query_vector}
+                    }
                 }
             }
         }
-    }
-    results = es.search(index=INDEX_NAME, body=body) # type: ignore
+    elif search_engine_flavor == "opensearch":
+        body = {
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": query_vector,
+                        "k": top_k,
+                    }
+                }
+            },
+            "size": top_k
+        }
+
+    return body
+
+def search_by_text(query: str, top_k: int = 5):
+    # Get the embedding vector from the embedding service
+    query_vector = embedding_client.get_embeddings(query)[0]  # [0] because we're only encoding one query
+
+    search_engine_flavor = os.getenv("SEARCH_ENGINE_FLAVOR", "elasticsearch")
+    results = es.search(index=INDEX_NAME, body=dsl_query(query_vector, top_k, search_engine_flavor)) # type: ignore
     return [hit["_source"] for hit in results["hits"]["hits"]]
