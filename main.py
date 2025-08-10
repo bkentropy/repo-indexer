@@ -71,6 +71,11 @@ async def websocket_summarizer(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.get("/search")
 async def search(q: str = Query(..., min_length=3), k: int = 3):
     # Get search results
