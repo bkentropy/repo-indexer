@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -158,8 +158,9 @@ async def summarizer_websocket_ui(q: str = Query("", min_length=0), k: int = 3):
     )
 
 @app.get("/")
-async def root():
-    return {"status": datetime.now().isoformat()}
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/ast")
 async def get_ast():
