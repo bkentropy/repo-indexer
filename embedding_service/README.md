@@ -1,0 +1,50 @@
+# Embedding Service
+
+A FastAPI-based service for generating text embeddings using Sentence Transformers.
+
+## Features
+
+- Generate embeddings for text or lists of text
+- Health check endpoint
+- Containerized with Docker
+
+## API Endpoints
+
+- `POST /embed` - Generate embeddings for the provided text(s)
+  - Request body: `{"texts": ["text1", "text2", ...]}`
+  - Response: `{"embeddings": [[...], [...], ...]}`
+
+- `GET /health` - Health check endpoint
+  - Response: `{"status": "healthy"}`
+
+## Running with Docker
+
+1. Build the Docker image:
+   ```bash
+   docker build -t embedding-service .
+   ```
+
+2. Run the container:
+   ```bash
+   docker run -d -p 8001:8001 --name embedding-service embedding-service
+   ```
+
+## Local Development
+
+1. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run the service:
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+   ```
+
+The service will be available at `http://localhost:8001`
