@@ -48,3 +48,32 @@ A FastAPI-based service for generating text embeddings using Sentence Transforme
    ```
 
 The service will be available at `http://localhost:8001`
+
+## Nomad Deployment
+
+1. Build the Docker image:
+   ```bash
+   docker build -t embedding-service .
+   ```
+
+2. Deploy with Nomad:
+   ```bash
+   nomad run embedding.nomad.hcl
+   ```
+
+3. Check job status:
+   ```bash
+   nomad status embedding-service
+   ```
+
+4. View logs:
+   ```bash
+   nomad logs -job embedding-service
+   ```
+
+5. Stop the service:
+   ```bash
+   nomad stop embedding-service
+   ```
+
+The service will be available through Nomad's service discovery at the configured port 8001.

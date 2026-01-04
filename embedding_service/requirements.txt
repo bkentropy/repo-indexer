@@ -1,9 +1,15 @@
-fastapi>=0.95.0
-uvicorn>=0.21.0
-sentence-transformers>=2.2.2
-pydantic>=1.10.7
-python-multipart>=0.0.6
-optimum 
-optimum-intel 
-openvino 
-openvino-dev
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Web
+fastapi==0.110.0
+uvicorn==0.29.0
+python-multipart==0.0.9
+
+# ML stack (KNOWN GOOD)
+numpy<2
+torch==2.1.2+cpu
+transformers==4.36.2
+sentence-transformers==2.6.1
+
+# Validation
+pydantic==1.10.13

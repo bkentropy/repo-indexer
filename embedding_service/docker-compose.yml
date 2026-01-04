@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   embedding-service:
     build:
@@ -10,8 +8,4 @@ services:
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
+
