@@ -16,7 +16,7 @@ job "embedding-service" {
       driver = "docker"
 
       config {
-        image = "localhost:5000/embedding-service:latest"
+        image = "embedding-service:0.0.1"
       }
 
       env {
