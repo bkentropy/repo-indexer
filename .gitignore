@@ -51,3 +51,5 @@ tmp/*
 .cache/*
 .embedding.pid
 .server.pid
+
+.local

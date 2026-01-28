@@ -77,3 +77,9 @@ The service will be available at `http://localhost:8001`
    ```
 
 The service will be available through Nomad's service discovery at the configured port 8001.
+
+
+# TASK
+Try to run the Nomad job, but with a NON-latest tag on the image. See if that will pull from local.
+ALSO: clean shit up. So much bloat.
+ALSO: maybe cache the hf-models on the nomad host (or garage!)
