@@ -71,6 +71,8 @@ http://localhost:8000/summarizer/streaming-ui?q=make%20a%20post%20request
 
 
 # TODO:
+
+[x] Get nomad working -> lesson learned - can't use latest as a tag because nomad looks outside the system
 [ ] Host embedding model separately
 [ ] Handle ElasticSearch and OpenSearch?
 [ ] Make note of how to create index in both ElasticSearch and OpenSearch
