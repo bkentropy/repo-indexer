@@ -7,7 +7,8 @@ python-multipart==0.0.9
 
 # ML stack (KNOWN GOOD)
 numpy<2
-torch==2.1.2+cpu
+# torch==2.1.2+cpu
+torch==2.6.0+cpu
 transformers==4.36.2
 sentence-transformers==2.6.1
 

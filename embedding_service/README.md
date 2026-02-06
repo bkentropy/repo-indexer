@@ -17,6 +17,11 @@ A FastAPI-based service for generating text embeddings using Sentence Transforme
 - `GET /health` - Health check endpoint
   - Response: `{"status": "healthy"}`
 
+### Hitting an endpoint
+```
+curl -X POST localhost:8001/embed -d '{"texts": ["sentence thing goes here"]}' -H "Content-Type: application/json"
+```
+
 ## Running with Docker
 
 1. Build the Docker image:
